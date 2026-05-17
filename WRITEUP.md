@@ -7,22 +7,22 @@
 **Negatives ("don't refuse").** I used
 benign **MMLU biology and medical subsets** (`high_school_biology`,
 `college_biology`, `anatomy`, `virology`, `medical_genetics`, plus five clinical
-subjects). The idea is to make the model separate *hazardous* biology
-from *ordinary* biology. 2,094 raw negatives were down-sampled to 1,273 (equal
-fraction per subject, preserving coverage); stratified 80/20 split.
+subjects). The idea is to make the model separate hazardous biology
+from ordinary biology. 2,094 negatives were down-sampled to 1,273 (equal
+fraction per subject); stratified 80/20 train-test split.
 
 ## Models and results
 
 **Baseline: frozen embeddings + logistic regression.** Each prompt is encoded
 once by `all-MiniLM-L6-v2` (a 6-layer, 22.7M-parameter sentence-transformer)
-into a 384-d vector. The encoder is totally frozen, and an L2-penalised logistic regression
+into a 384-d vector. An L2-penalised logistic regression
 is fit on top: 385 trained parameters (384 weights + bias). This isolates how much signal is already linearly separable
 in general-purpose embedding space.
 
 **DistilBERT: full fine-tuning.** `distilbert-base-uncased` with a new
 2-class head (a 768x768 `pre_classifier` plus a 768x2 `classifier`,
-~0.6M new parameters on top of the first-token representation). *All* ~67M
-parameters are updated - the 6 transformer layers, the embeddings, and the head;
+~0.6M new parameters on top of the first-token representation). All ~67M
+parameters are updated: the 6 transformer layers, the embeddings, and the head;
 nothing is frozen. With only ~2k training examples this is cheap (trained in ~75 s on my old desktop computer, which just has a
 GTX 1080).
 Training: 3 epochs, AdamW at lr 2e-5 with linear decay, batch size 16, weight
@@ -37,37 +37,30 @@ decay 0.01, max sequence length 256, fp32.
 :::
 
 Headline metrics are shown right; AUPRC is for the refuse (positive) class.
-Per-class precision / recall / F1 at the 0.5 threshold - DistilBERT: refuse
+Per-class precision / recall / F1 at the 0.5 threshold: DistilBERT: refuse
 0.976 / 0.973 / 0.975, don't-refuse 0.972 / 0.976 / 0.974; baseline: refuse
 0.943 / 0.965 / 0.954, don't-refuse 0.963 / 0.940 / 0.951 (raw counts in the
 Figure 1 confusion matrices). Fine-tuning buys ~2.2 accuracy points. The
 threshold-free metrics matter more for a safety filter: DistilBERT's AUPRC of
 0.995 means it holds near-perfect precision across almost the whole recall
-range, so the high-recall operating point a filter wants is nearly free. Even
-the frozen baseline reaches 95% accuracy against hard negatives - separable,
-but not trivially so.
+range, so the high-recall operating point a filter wants is nearly free. 
 
-## Failure modes (DistilBERT, 13 errors)
+## Failure modes (DistilBERT)
 
 Figure 3 shows sampled prompts from each confusion-matrix quadrant.
 
-**False negatives - missed refusals (7).** WMDP stems that read as ordinary
-biology out of context: *"Which of the following are considered gain of function
-research?"*, *"How long can the paroxysmal coughing stage last?"* - arguably
-label noise as much as model error.
+**False negatives - missed refusals (7).** Anecdotally, these WMDP positives look like ordinary biology.
 
-**False positives - benign flagged (6).** Benign MMLU questions tripping on
+**False positives - benign flagged (6).** Possibly benign MMLU questions tripping on
 hazard-adjacent vocabulary: *"Who discovered the first virus?"*, *"Nipah is a
-zoonotic paramyxovirus; where did it originate?"* - the model over-weights
-pathogen and recombinant-DNA terms, the exact tension the hard-negative design
-was built to expose. These false positives are not a free trade for safety: a
-filter that over-refuses benign biology makes the assistant unusable for
-legitimate research and pushes users toward unfiltered alternatives - an
-instance of AviD's Rule of Usability, "security at the expense of usability
-comes at the expense of security."[^avid]
+zoonotic paramyxovirus; where did it originate?"* If there are too many of
+these, the filter falls foul of AviD's Rule of Usability - "security at the
+expense of usability comes at the expense of security" - because over-refusing
+benign biology drives users toward unfiltered alternatives.[^avid]
 
-[^avid]: Avi Douglen, "AviD's Rule of Usability." Coined on the Information
-Security Stack Exchange; see <https://xo.tc/avids-rule-of-usability.html>.
+[^avid]: "AviD's Rule of Usability", credited to Avi Douglen and widely cited
+on the Information Security Stack Exchange; I could not pin down the original
+post.
 
 **Errors are often confident (Figure 4).** DistilBERT is well-calibrated in
 aggregate (ECE 1.6%, Brier 0.021), but its mistakes split into two populations:
@@ -76,23 +69,18 @@ aggregate (ECE 1.6%, Brier 0.021), but its mistakes split into two populations:
 therefore catches 6/13 errors for only ~2% review load, then hits a wall: the
 confident errors need better data, not a threshold.
 
-One systematic confound (Figure 2): WMDP stems are uniformly short, while MMLU's
+One systematic confounder (Figure 2): WMDP are uniformly short, while MMLU's
 clinical-vignette questions give the benign class a long right tail, so prompt
-length weakly correlates with the label and could be learned as a shortcut.
+length weakly correlates with the label and could be learned as a shortcut. (I have not done any analysis to try to falsify this idea).
 
 ## Out-of-domain behaviour
 
 The classifier only ever sees biology in training, but a deployed filter mostly
 sees non-bio traffic. I scored it on 12 benign non-bio MMLU subjects (2,132
-prompts, inference-only - not in training or the headline metrics; Figure 5).
+prompts, inference-only, not in training or the main metrics; Figure 5).
 Aggregate false-positive rate is a reassuring 2.3%, and pure humanities/STEM
-(history, philosophy, maths, physics, CS) are ~0%. But it is very uneven:
-`us_foreign_policy` is flagged at 27% and `college_chemistry` at 9%.
-Foreign-policy questions about nuclear weapons, proliferation and rogue states
-genuinely overlap WMDP's threat register (WMDP = *Weapons of Mass Destruction*
-Proxy), and reactive-chemistry questions share a hazard vocabulary. The model
-learned a fuzzier "biosecurity-risk-adjacent" concept than "hazardous biology" -
-a scoping error only visible off-distribution.
+(history, philosophy, maths, physics, CS) are ~0%. But it is very uneven, with two categories where it does particularly badly:
+`us_foreign_policy` is flagged at 27% and `college_chemistry` at 9%. The former is really weird, and deserves some more investigation. WMDP = *Weapons of Mass Destruction*, so maybe the model learned something like "big things which could appear in the news", which would include pathogenic viruses and foreign policy? But without more analysis this is pure speculation on my part.
 
 ## What I'd do next
 

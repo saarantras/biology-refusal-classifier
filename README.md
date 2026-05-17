@@ -1,18 +1,8 @@
 # Biology Refusal Classifier
 
-A binary text classifier that flags natural-language prompts as **refuse**
-(biosecurity risk) or **don't refuse** (benign). Built for the SecureBio /
-CBAI take-home task.
-
-## Approach in one paragraph
-
-Positives are WMDP-bio question stems (`cais/wmdp`), answer choices stripped.
-Negatives are benign biology and medical exam questions from MMLU -- a
-deliberately *hard* contrast: same exam-question format, same broad domain, so
-the classifier must separate hazardous biology from ordinary biology rather
-than learning a "is this biology / is this a question" shortcut. Two models are
-compared: a frozen-embedding + logistic-regression baseline, and a fine-tuned
-DistilBERT. See `WRITEUP.md` for full reasoning and results.
+Binary text classifier that flags a prompt as **refuse** (biosecurity risk) or
+**don't refuse** (benign). See `WRITEUP.md` for methodology, results, and
+analysis.
 
 ## Setup
 
@@ -48,7 +38,7 @@ Metrics print to stdout. Each model writes full test predictions to
 `outputs/<model>_predictions.csv` and misclassified rows to
 `outputs/<model>_misclassified.csv` for failure analysis.
 
-To render the write-up to PDF (no LaTeX needed):
+To render the write-up to PDF:
 
 ```bash
 conda install -c conda-forge pandoc weasyprint -y
@@ -69,6 +59,5 @@ pandoc WRITEUP.md -o WRITEUP.pdf --pdf-engine=weasyprint -c style.css
 
 ## Hardware
 
-Developed on a single GTX 1080 (8 GB). DistilBERT fine-tuning takes a few
-minutes; the baseline runs in well under a minute. Runs on free-tier Colab
-unchanged.
+1x single GTX 1080 (8 GB). DistilBERT fine-tuning takes a few
+minutes; the baseline runs in well under a minute.
