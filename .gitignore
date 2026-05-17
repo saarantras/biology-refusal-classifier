@@ -1,0 +1,14 @@
+# Company spec - not for a public repo
+*.pdf
+!WRITEUP.pdf
+
+# Regenerable datasets (WMDP is gated - do not redistribute)
+data/
+
+# Model artifacts, prediction dumps, scratch outputs.
+# Figure PNGs are committed separately with `git add -f`.
+outputs/
+
+# Python
+__pycache__/
+*.pyc
