@@ -80,7 +80,10 @@ sees non-bio traffic. I scored it on 12 benign non-bio MMLU subjects (2,132
 prompts, inference-only, not in training or the main metrics; Figure 5).
 Aggregate false-positive rate is a reassuring 2.3%, and pure humanities/STEM
 (history, philosophy, maths, physics, CS) are ~0%. But it is very uneven, with two categories where it does particularly badly:
-`us_foreign_policy` is flagged at 27% and `college_chemistry` at 9%. The former is really weird, and deserves some more investigation. WMDP = *Weapons of Mass Destruction*, so maybe the model learned something like "big things which could appear in the news", which would include pathogenic viruses and foreign policy? But without more analysis this is pure speculation on my part.
+`us_foreign_policy` is flagged at 27% and `college_chemistry` at 9%. The former is really weird, and deserves some more investigation. WMDP = *Weapons of Mass Destruction*, so maybe the model learned something like "big things which could appear in the news", which would include pathogenic viruses and foreign policy? But without more analysis this is pure speculation on my part. One specific
+version of it - that COVID-era virology had bled into `us_foreign_policy` - was
+checked and falsified: 0% of those prompts (and 0% of every OOD subject) contain
+COVID / SARS-CoV-2 / coronavirus terms, and MMLU predates the pandemic anyway.
 
 ## What I'd do next
 
